@@ -186,6 +186,17 @@ static void mlme_indication(MlmeIndication_t *indication)
     msg_send(&msg, semtech_loramac_pid);
 }
 
+void semtech_loramac_set_join_state(semtech_loramac_t *mac, bool joined)
+{
+    DEBUG("[semtech-loramac] set join state ? %d\n", joined);
+
+    mutex_lock(&mac->lock);
+    MibRequestConfirm_t mibReq;
+    mibReq.Type = MIB_NETWORK_JOINED;
+    mibReq.Param.IsNetworkJoined = joined;
+    LoRaMacMibSetRequestConfirm(&mibReq);
+    mutex_unlock(&mac->lock);
+}
 #ifdef MODULE_PERIPH_EEPROM
 static size_t _read_uint32(size_t pos, uint32_t *value)
 {
@@ -204,18 +215,6 @@ static size_t _write_uint32(size_t pos, uint32_t value)
     array[2] = (uint8_t)(value >> 8);
     array[3] = (uint8_t)(value);
     return eeprom_write(pos, array, sizeof(uint32_t));
-}
-
-static inline void _set_join_state(semtech_loramac_t *mac, bool joined)
-{
-    DEBUG("[semtech-loramac] set join state ? %d\n", joined);
-
-    mutex_lock(&mac->lock);
-    MibRequestConfirm_t mibReq;
-    mibReq.Type = MIB_NETWORK_JOINED;
-    mibReq.Param.IsNetworkJoined = joined;
-    LoRaMacMibSetRequestConfirm(&mibReq);
-    mutex_unlock(&mac->lock);
 }
 
 static inline void _read_loramac_config(semtech_loramac_t *mac)
@@ -267,7 +266,7 @@ static inline void _read_loramac_config(semtech_loramac_t *mac)
 
     /* Read join state */
     uint8_t joined = eeprom_read_byte(pos);
-    _set_join_state(mac, (bool)joined);
+    semtech_loramac_set_join_state(mac, (bool)joined);
 }
 
 static inline size_t _save_uplink_counter(semtech_loramac_t *mac)
